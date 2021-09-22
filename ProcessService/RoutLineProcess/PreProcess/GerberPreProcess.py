@@ -44,6 +44,8 @@ class GerberPreProcess:
         self.__Regenerate()
         self.__CutLine_Set()
         self.__Regenerate()
+        self.__OverLapping_Set()
+        self.__Regenerate()
         self.__CutSet_Set()
         self.__Regenerate()
         self.__CombineSets()
@@ -247,7 +249,7 @@ def dataPrepar(path):
 
 
 # if __name__ == '__main__':
-#     gerbers = dataPrepar(r"C:\Users\96941\Desktop\新建文件夹")
+#     gerbers = dataPrepar(r"D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\JP-1W2310536\JP-1W2306977")
 #     imageGenerater = ImageGenerater(gerbers)
 #     lineset = GerberPreProcess(imageGenerater.gerberLayers["gko"])
 #     image = imageGenerater.DrawShow(lineset.sets, True, -1)
@@ -270,8 +272,8 @@ if __name__ == '__main__':
             #     continue
             if not indexset.__contains__(index) and index < 39:
                 continue
-            if index < 45:
-                continue
+            # if index<19:
+            #     continue
             gerbers = dataPrepar(f"{gerberFilePath}\{groupDir}\{orderDir}")
             imageGenerater = ImageGenerater(gerbers)
             lineset = GerberPreProcess(imageGenerater.gerberLayers["gko"])
@@ -280,4 +282,4 @@ if __name__ == '__main__':
             kval = 13
             while kval == 13:
                 kval = cv2.waitKey(-1)
-#206\JP-1W1748339\JP-1W1748167测试
+# 206\JP-1W1748339\JP-1W1748167测试
