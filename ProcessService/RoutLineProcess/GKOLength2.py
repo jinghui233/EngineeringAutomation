@@ -183,6 +183,7 @@ class GKOLength:
                 line_dict[key] = []
                 line_dict[key].append(firstp)
                 line_dict[key].append(lastp)
+
         return inner_len, line_dict
 
 
