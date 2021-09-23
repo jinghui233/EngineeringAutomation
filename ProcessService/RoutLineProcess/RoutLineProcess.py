@@ -100,7 +100,7 @@ def dataPrepar(path):
 
 
 if __name__ == '__main__':
-    path = "D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\ALL-1W2308512\JP-1W2310736"
+    path = "D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\ALL-2W2312253\JP-2W2318140"
     gerbers = dataPrepar(path)
     imageGenerater = ImageGenerater(gerbers)
     routlinepces = RoutLineProcess(imageGenerater)

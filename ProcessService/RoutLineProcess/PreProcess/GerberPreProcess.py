@@ -48,6 +48,8 @@ class GerberPreProcess:
         self.__Regenerate()
         self.__CutSet_Set()
         self.__Regenerate()
+        self.__CutLine_Set()
+        self.__Regenerate()
         self.__CombineSets()
         pass
 
@@ -70,8 +72,8 @@ class GerberPreProcess:
         gerberFile.write("test.gko")
 
     def __CombineSets(self):
-        thresh = 0.01 * 0
-        usethresh = 1 + 1
+        thresh = 0.01
+        usethresh = 1
         flag = True
         while flag:
             flag = False
@@ -248,38 +250,38 @@ def dataPrepar(path):
     return gerbers
 
 
-# if __name__ == '__main__':
-#     gerbers = dataPrepar(r"D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\JP-1W2310536\JP-1W2306977")
-#     imageGenerater = ImageGenerater(gerbers)
-#     lineset = GerberPreProcess(imageGenerater.gerberLayers["gko"])
-#     image = imageGenerater.DrawShow(lineset.sets, True, -1)
-#     cv2.imshow("test", image)
-#     kval = 13
-#     while kval == 13:
-#         kval = cv2.waitKey(-1)
-#
-indexset = [12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 28, 30, 31, 32, 36, 39]
 if __name__ == '__main__':
-    gerberFilePath = f"D:\ProjectFile\PCBFinalInspection\Work\PCBGerberFile"
-    groupDirs = os.listdir(gerberFilePath)
-    index = 0
-    for groupDir in groupDirs:
-        orderDirs = os.listdir(f"{gerberFilePath}\{groupDir}")
-        for orderDir in orderDirs:
-            index += 1
-            print(f"{index}\\{groupDir}\\{orderDir}")
-            # if index == 5:
-            #     continue
-            if not indexset.__contains__(index) and index < 39:
-                continue
-            # if index<19:
-            #     continue
-            gerbers = dataPrepar(f"{gerberFilePath}\{groupDir}\{orderDir}")
-            imageGenerater = ImageGenerater(gerbers)
-            lineset = GerberPreProcess(imageGenerater.gerberLayers["gko"])
-            image = imageGenerater.DrawShow(lineset.sets, False, -1)
-            cv2.imshow("test", image)
-            kval = 13
-            while kval == 13:
-                kval = cv2.waitKey(-1)
+    gerbers = dataPrepar(r"D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\ALL-1W2308512\JP-1W2310736")
+    imageGenerater = ImageGenerater(gerbers)
+    lineset = GerberPreProcess(imageGenerater.gerberLayers["gko"])
+    image = imageGenerater.DrawShow(lineset.sets, False, -1)
+    cv2.imshow("test", image)
+    kval = 13
+    while kval == 13:
+        kval = cv2.waitKey(-1)
+#
+# indexset = [12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 28, 30, 31, 32, 36, 39]
+# if __name__ == '__main__':
+#     gerberFilePath = f"D:\ProjectFile\PCBFinalInspection\Work\PCBGerberFile"
+#     groupDirs = os.listdir(gerberFilePath)
+#     index = 0
+#     for groupDir in groupDirs:
+#         orderDirs = os.listdir(f"{gerberFilePath}\{groupDir}")
+#         for orderDir in orderDirs:
+#             index += 1
+#             print(f"{index}\\{groupDir}\\{orderDir}")
+#             # if index == 5:
+#             #     continue
+#             if not indexset.__contains__(index) and index < 39:
+#                 continue
+#             # if index<19:
+#             #     continue
+#             gerbers = dataPrepar(f"{gerberFilePath}\{groupDir}\{orderDir}")
+#             imageGenerater = ImageGenerater(gerbers)
+#             lineset = GerberPreProcess(imageGenerater.gerberLayers["gko"])
+#             image = imageGenerater.DrawShow(lineset.sets, False, -1)
+#             cv2.imshow("test", image)
+#             kval = 13
+#             while kval == 13:
+#                 kval = cv2.waitKey(-1)
 # 206\JP-1W1748339\JP-1W1748167测试
