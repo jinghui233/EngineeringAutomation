@@ -44,6 +44,8 @@ class GerberPreProcess:
         pass
 
     def ToGerberLayer(self):
+        # def __init__(self, statements, settings, primitives, apertures, filename=None):
+        #     super(GerberFile, self).__init__(statements, settings, primitives, filename)
         primitives = []
         statements = []
         statements.extend(self.gerberLayer.statements[0:8])

@@ -3,7 +3,9 @@ import cv2
 import numpy as np
 import os
 import gerber
-from gerber.primitives import Circle as gbCircle, Line as gbLine, Rectangle as gbRectangle, Region as gbRegion, Arc as gbArc, Drill as gbDrill
+from gerber.primitives import Circle as gbCircle, Line as gbLine, Rectangle as gbRectangle, Region as gbRegion, Arc as gbArc, Drill as gbDrill, Obround as gbObround, \
+    AMGroup as gbAMGroup, Outline as gbOutline
+from gerber.am_statements import AMLowerLeftLinePrimitive as gbAMLowerLeftLine, AMCirclePrimitive as gbAMCircle, AMVectorLinePrimitive as gbAMVectorLine
 
 
 class ImageGenerater:
@@ -16,10 +18,9 @@ class ImageGenerater:
             self.__init()
 
     def __init(self):
-        self.sampleLine, self.sampleCircle, self.sampleRect = gbLine((1, 1), (1, 1), 0), gbCircle((1, 1), 1), gbRectangle((1, 1), 1, 1)
-        self.sampleArc, self.sampleDrill = gbArc((1, 1), (1, 1), (1, 1), (1, 1), None, None), gbDrill((1, 1), 1)
-        self.sampleRegion = gbRegion(None)
-        self.gerberLayers["gko"] = gerber.loads(self.gerbers["gko"], "gko")
+        for gerberkey in self.gerbers.keys():
+            self.gerberLayers[gerberkey] = gerber.loads(self.gerbers[gerberkey], gerberkey)
+            self.gerberLayers[gerberkey].to_inch()
         self.gkobounds = self.gerberLayers["gko"].bounds
         self.offset = (self.gkobounds[0][0], self.gkobounds[1][0])
         self.width, self.height = self.gkobounds[0][1] - self.gkobounds[0][0], self.gkobounds[1][1] - self.gkobounds[1][0]
@@ -62,9 +63,11 @@ class ImageGenerater:
     def __DrawLine(self, primitive, image, ratek, offset, color, thickness=0):  # 画线
         start = self.__p_k_offset_p(primitive.start, ratek, offset)  # 获取起点
         end = self.__p_k_offset_p(primitive.end, ratek, offset)  # 获取终点
-        if type(primitive.aperture) == type(self.sampleRect):
+        if isinstance(primitive.aperture, gbRectangle):
             dx = primitive.bounding_box_no_aperture[0][1] - primitive.bounding_box_no_aperture[0][0]
             dy = primitive.bounding_box_no_aperture[1][1] - primitive.bounding_box_no_aperture[1][0]
+            dx = primitive.aperture.height
+            dy = primitive.aperture.width
             ltp1 = self.__p_k_offset_p((primitive.start[0] - primitive.aperture.width / 2, primitive.start[1] - primitive.aperture.height / 2), ratek, offset)  # 左上角
             rbp1 = self.__p_k_offset_p((primitive.start[0] + primitive.aperture.width / 2, primitive.start[1] + primitive.aperture.height / 2), ratek, offset)  # 右下角
             ltp2 = self.__p_k_offset_p((primitive.end[0] - primitive.aperture.width / 2, primitive.end[1] - primitive.aperture.height / 2), ratek, offset)  # 左上角
@@ -72,16 +75,34 @@ class ImageGenerater:
             cv2.rectangle(image, ltp1, rbp1, color, -1)
             cv2.rectangle(image, ltp2, rbp2, color, -1)
             angle = primitive.angle
-            r = dx * math.sin(angle) + dy * math.cos(angle)
+            r = math.fabs(dx * math.sin(angle) + dy * math.cos(angle)) * ratek
             r = math.ceil(r)  # 半径向上取整
             if r > 0:
                 cv2.line(image, start, end, color, r * int(0 == thickness) + thickness)
 
-        if type(primitive.aperture) == type(self.sampleCircle):
+        if isinstance(primitive.aperture, gbCircle):
             r = primitive.aperture.radius * 2 * ratek  # 获取半径
             r = math.ceil(r)  # 半径向上取整
             if r > 0:
-                cv2.line(image, start, end, color, r)
+                cv2.line(image, start, end, color, r * int(0 == thickness) + thickness)
+
+    def __DrawAMVectorLine(self, primitive, image, ratek, offset, color):
+        start = self.__p_k_offset_p(primitive.start, ratek, offset)  # 获取起点
+        end = self.__p_k_offset_p(primitive.end, ratek, offset)  # 获取终点
+        r = primitive.width * ratek  # 获取半径
+        r = math.ceil(r)  # 半径向上取整
+        cv2.line(image, start, end, color, r)
+
+    def __DrawAMLowerLeftLine(self, primitive, image, ratek, offset, color):
+        cx = primitive.lower_left[0] + primitive.width / 2
+        cy = primitive.lower_left[1] + primitive.height / 2
+        rectangle = gbRectangle((cx, cy), primitive.width, primitive.height)
+        self.__DrawRectangle(rectangle, image, ratek, offset, color)
+
+    def __DrawAMCircle(self, primitive, image, ratek, offset, color):
+        position = self.__p_k_offset_p(primitive.position, ratek, offset)  # 获取圆心
+        r = math.ceil(primitive.diameter / 2 * ratek)  # 获取半径
+        cv2.circle(image, position, r, color, -1)
 
     def __DrawRectangle(self, primitive, image, ratek, offset, color):  # 画矩形
         ltp = self.__p_k_offset_p((primitive.bounding_box[0][0], primitive.bounding_box[1][0]), ratek, offset)  # 左上角
@@ -90,15 +111,19 @@ class ImageGenerater:
 
     def __DrawCircle(self, primitive, image, ratek, offset, color):  # 画圆
         position = self.__p_k_offset_p(primitive.position, ratek, offset)  # 获取圆心
-        r = primitive.radius * ratek  # 获取半径
-        r = math.ceil(r)  # 半径向上取整
+        r = math.ceil(primitive.radius * ratek)  # 获取半径
         cv2.circle(image, position, r, color, -1)
+
+    def __DrawObround(self, primitive, image, ratek, offset, color, linethickness):  # 画椭圆
+        self.primitivesTraverse(image, primitive.subshapes, ratek, offset, linethickness)
+        # position = self.__p_k_offset_p(primitive.position, ratek, offset)  # 获取圆心
+        # width = math.ceil(primitive.width / 2 * ratek)  # 获取长轴
+        # height = math.ceil(primitive.height / 2 * ratek)  # 获取短轴
+        # cv2.ellipse(image, position, (width, height), 0, 0, 360, color, -1)
 
     def __DrawDrill(self, primitive, image, ratek, offset, color):  # 画圆
         position = self.__p_k_offset_p(primitive.position, ratek, offset)  # 获取圆心
-        r = primitive.radius * 5  # 获取半径
-        r = math.ceil(r)  # 半径向上取整
-        # r=3
+        r = math.ceil(primitive.radius * 5)  # 获取半径
         cv2.circle(image, position, r, color, -1)
 
     def point_in_box(self, point, box):
@@ -150,21 +175,66 @@ class ImageGenerater:
             resultp.append(nextPoint_r)
         return resultp
 
+    def __DrawAMGroup(self, primitive, image, ratek, offset, color, linethickness):
+        self.primitivesTraverse(image, primitive.stmt.primitives, ratek, (offset[0] - primitive.position[0], offset[1] - primitive.position[1]), linethickness)
+        pass
+
+    def __DrawOutLine(self, primitive, image, ratek, offset, color, linethickness):
+        # self.primitivesTraverse(image, primitive.primitives, ratek, offset, linethickness)
+        bounding_box = primitive.bounding_box
+        cx = (bounding_box[0][0] + bounding_box[0][1]) / 2
+        cy = (bounding_box[1][0] + bounding_box[1][1]) / 2
+        rectangle = gbRectangle((cx, cy), bounding_box[0][1] - bounding_box[0][0], bounding_box[1][1] - bounding_box[1][0])
+        self.__DrawRectangle(rectangle, image, ratek, offset, color)
+
     def __DrawRegion(self, primitive, image, ratek, offset, color):
         points = []
         for primitive2 in primitive.primitives:
             color = 255
             if primitive2.level_polarity == "clear":
                 color = 0
-            if type(primitive2) == type(self.sampleLine):
+            if isinstance(primitive2, gbLine):
                 points.append(self.__p_k_offset_p(primitive2.start, ratek, offset))
-            elif type(primitive2) == type(self.sampleArc):
+            elif isinstance(primitive2, gbArc):
                 start = ((primitive2.start[0] - offset[0]) * ratek, (primitive2.start[1] - offset[1]) * ratek)
                 end = ((primitive2.end[0] - offset[0]) * ratek, (primitive2.end[1] - offset[1]) * ratek)
                 center = ((primitive2.center[0] - offset[0]) * ratek, (primitive2.center[1] - offset[1]) * ratek)
                 r = primitive2.radius * ratek
                 points.extend(self.getpoints(center, r, start, end, primitive2.direction))
         cv2.fillPoly(image, [np.array(points)], color)
+
+    def primitivesTraverse(self, image, primitives, ratek, offset, linethickness):
+        if isinstance(primitives, dict):
+            primitives = primitives.values()
+        for primitive in primitives:
+            color = 255
+            if hasattr(primitive, 'level_polarity') and primitive.level_polarity == "clear":
+                color = 0
+            if isinstance(primitive, gbLine):
+                self.__DrawLine(primitive, image, ratek, offset, color, linethickness)
+            elif isinstance(primitive, gbRectangle):
+                self.__DrawRectangle(primitive, image, ratek, offset, color)
+            elif isinstance(primitive, gbCircle):
+                self.__DrawCircle(primitive, image, ratek, offset, color)
+            elif isinstance(primitive, gbDrill):
+                self.__DrawDrill(primitive, image, ratek, offset, color)
+            elif isinstance(primitive, gbRegion):
+                self.__DrawRegion(primitive, image, ratek, offset, color)
+            elif isinstance(primitive, gbObround):
+                self.__DrawObround(primitive, image, ratek, offset, color, linethickness)
+            elif isinstance(primitive, gbAMGroup):
+                self.__DrawAMGroup(primitive, image, ratek, offset, color, linethickness)
+            elif isinstance(primitive, gbOutline):
+                self.__DrawOutLine(primitive, image, ratek, offset, color, linethickness)
+            elif isinstance(primitive, gbAMLowerLeftLine):
+                self.__DrawAMLowerLeftLine(primitive, image, ratek, offset, color)
+            elif isinstance(primitive, gbAMCircle):
+                self.__DrawAMCircle(primitive, image, ratek, offset, color)
+            elif isinstance(primitive, gbAMVectorLine):
+                self.__DrawAMVectorLine(primitive, image, ratek, offset, color)
+            else:
+                sfe = 0
+
 
     def __Draw(self, layerName, linethickness=0):
         gerberLayer = self.gerberLayers[layerName]
@@ -174,22 +244,7 @@ class ImageGenerater:
         offset = (self.offset[0] - padding / ratek, self.offset[1] - padding / ratek)
         width, height = math.ceil((bounds[0][1] - bounds[0][0]) * ratek + padding * 2), math.ceil((bounds[1][1] - bounds[1][0]) * ratek + padding * 2)
         image = np.zeros((height, width), np.uint8)
-        for primitive in gerberLayer.primitives:
-            color = 255
-            if primitive.level_polarity == "clear":
-                color = 0
-            if type(primitive) == type(self.sampleLine):
-                self.__DrawLine(primitive, image, ratek, offset, color, linethickness)
-            elif type(primitive) == type(self.sampleRect):
-                self.__DrawRectangle(primitive, image, ratek, offset, color)
-            elif type(primitive) == type(self.sampleCircle):
-                self.__DrawCircle(primitive, image, ratek, offset, color)
-            elif type(primitive) == type(self.sampleDrill):
-                self.__DrawDrill(primitive, image, ratek, offset, color)
-            elif type(primitive) == type(self.sampleRegion):
-                self.__DrawRegion(primitive, image, ratek, offset, color)
-            else:
-                sfe = 0
+        self.primitivesTraverse(image, gerberLayer.primitives, ratek, offset, linethickness)
         return image
 
     def DrawShow(self, sets, step=True, waitKey=1):
@@ -206,7 +261,7 @@ class ImageGenerater:
             for line in set.GetLineSet():
                 start = self.__p_k_offset_p(line.start, ratek, offset)  # 获取起点
                 end = self.__p_k_offset_p(line.end, ratek, offset)  # 获取终点
-                if type(line.aperture) == type(self.sampleCircle):
+                if isinstance(line.aperture, gbCircle):
                     r = line.aperture.radius * 2 * ratek  # 获取半径
                     r = math.ceil(r)  # 半径向上取整
                     if r > 0:
@@ -218,7 +273,7 @@ class ImageGenerater:
 
 
 def dataPreparation():
-    path = 'D:\\ProjectFile\\EngineeringAutomation\\GongProcessing\\TestDataSet\\新建文件夹\\all-2w2283651\\CAM'
+    path = r'C:\Users\96941\Desktop\JP-2W1557520'
     layers = os.listdir(path)
     gerbers = {}
     for layer in layers:
@@ -231,9 +286,10 @@ def dataPreparation():
 def test1():
     gerbers = dataPreparation()  # 准备数据
     gbGenerater = ImageGenerater(gerbers)  # 图片生成器
-    imagegko = gbGenerater.getlayerimg("gko")
-    cv2.imwrite("Debug/gko.jpg", imagegko)
-
+    imagegko = gbGenerater.getlayerimg("gts")
+    cv2.imshow("test", imagegko)
+    cv2.waitKey(-1)
+    cv2.imwrite("Debug/gts.jpg", imagegko)
 
 
 def test2():
@@ -255,5 +311,8 @@ def test2():
 
 
 if __name__ == "__main__":
+    cv2.namedWindow("test", 0)
+    cv2.resizeWindow("test", int(1728 / 100 * 100), int(972 / 100 * 100))
+    cv2.moveWindow("test", 0, 0)
     test1()
     print("done!!!!!!!!!!")
