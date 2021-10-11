@@ -2,7 +2,7 @@ import types
 from typing import List
 import os
 from ProcessService.SupportFuncs.ImageGenerater import ImageGenerater
-from ProcessService.RoutLineProcess.GKOLength2 import GKOLength
+from ProcessService.RoutLineProcess.GKOImageProcess import GKOImageProcess
 from ProcessService.RoutLineProcess.PreProcess.GerberPreProcess import GerberPreProcess
 from ProcessService.RoutLineProcess.PreProcess.LineSet import LineSet
 from gerber.gerber_statements import CoordStmt
@@ -15,11 +15,11 @@ class RoutLineProcess:
         self.__init()
 
     def __init(self):
-        self.gkoLength = GKOLength(self.imageGenerater)
+        self.gkoImageProcess = GKOImageProcess(self.imageGenerater)
         self.gbpprss = GerberPreProcess(self.imageGenerater.gerberLayers["gko"])
 
     def ToGerberFile(self):
-        pointPairList = self.gkoLength.line_dict
+        pointPairList = self.gkoImageProcess.line_dict
         lineSets = self.gbpprss.sets
         newLineSets = []
         for pointPair in pointPairList.values():
@@ -49,7 +49,7 @@ class RoutLineProcess:
         return writestr
 
     def ToGerberFile2(self):
-        contours = self.gkoLength.contours
+        contours = self.gkoImageProcess.contours
         primitives = []
         statements = []
         statements.extend(self.gbpprss.gerberLayer.statements[0:8])
@@ -100,7 +100,7 @@ def dataPrepar(path):
 
 
 if __name__ == '__main__':
-    path = "D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\ALL-1W2308512\jp-2w2282523"
+    path = "D:\ProjectFile\PCBFinalInspection\Work\PCBGerberFile\JP-2W2114150\JP-2W2113820"
     gerbers = dataPrepar(path)
     imageGenerater = ImageGenerater(gerbers)
     routlinepces = RoutLineProcess(imageGenerater)

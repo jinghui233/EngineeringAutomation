@@ -235,7 +235,6 @@ class ImageGenerater:
             else:
                 sfe = 0
 
-
     def __Draw(self, layerName, linethickness=0):
         gerberLayer = self.gerberLayers[layerName]
         bounds = self.gkobounds
