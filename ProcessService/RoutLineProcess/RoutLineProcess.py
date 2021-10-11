@@ -48,30 +48,6 @@ class RoutLineProcess:
             writestr += strr
         return writestr
 
-    def ToGerberFile2(self):
-        contours = self.gkoImageProcess.contours
-        primitives = []
-        statements = []
-        statements.extend(self.gbpprss.gerberLayer.statements[0:8])
-        for contour in contours:
-            prePoint = contour[0][0]
-            for curIndex in range(1, len(contour)):
-                curPoint = contour[curIndex][0]
-                coord = {"function": None, "x": str(prePoint[0]/self.imageGenerater.ratek), "y": str(prePoint[1]/self.imageGenerater.ratek), "i": None, "j": None, "op": "D02"}
-                coordstmt = CoordStmt.from_dict(coord, self.gbpprss.gerberLayer.settings)
-                statements.append(coordstmt)
-                coord = {"function": None, "x": str(curPoint[0]/self.imageGenerater.ratek), "y": str(curPoint[1]/self.imageGenerater.ratek), "i": None, "j": None, "op": "D01"}
-                coordstmt = CoordStmt.from_dict(coord, self.gbpprss.gerberLayer.settings)
-                statements.append(coordstmt)
-                prePoint = curPoint
-        gerberFile = GerberFile(statements, self.gbpprss.gerberLayer.settings, primitives, None)
-        writestr = ""
-        for statement in statements:
-            strr = statement.to_gerber(self.gbpprss.gerberLayer.settings) + "\n"
-            if "".__contains__("G75*"):
-                writestr += "G54D10*"
-            writestr += strr
-        return writestr
 
     def __findset(self, pointPair, lineSets: List[LineSet]) -> LineSet:
         ratek = self.imageGenerater.ratek
