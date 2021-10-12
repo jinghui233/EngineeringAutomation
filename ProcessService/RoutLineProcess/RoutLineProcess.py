@@ -1,12 +1,15 @@
-import types
-from typing import List
 import os
-from ProcessService.SupportFuncs.ImageGenerater import ImageGenerater
-from ProcessService.RoutLineProcess.GKOImageProcess import GKOImageProcess
-from ProcessService.RoutLineProcess.PreProcess.GerberPreProcess import GerberPreProcess
-from ProcessService.RoutLineProcess.PreProcess.LineSet import LineSet
+from typing import List
+
 from gerber.gerber_statements import CoordStmt
+from gerber.primitives import Line as Gbt_Line
 from gerber.rs274x import GerberFile
+
+from ProcessService.RoutLineProcess.GKOGerberProcess.LineSet import LineSet
+from ProcessService.RoutLineProcess.GKOGerberProcess.PreProcess import PreProcess
+from ProcessService.RoutLineProcess.GKOGerberProcess.LastProcess import LastProcess
+from ProcessService.RoutLineProcess.GKOImageProcess import GKOImageProcess
+from ProcessService.SupportFuncs.ImageGenerater import ImageGenerater
 
 
 class RoutLineProcess:
@@ -15,39 +18,41 @@ class RoutLineProcess:
         self.__init()
 
     def __init(self):
-        self.gkoImageProcess = GKOImageProcess(self.imageGenerater)
-        self.gbpprss = GerberPreProcess(self.imageGenerater.gerberLayers["gko"])
+        # 图像处理部分
+        self.gkoImgPcs = GKOImageProcess(self.imageGenerater)
+        # 线层去重切割分组预处理
+        self.gkoGbrPrePcs = PreProcess(self.imageGenerater.gerberLayers["gko"])
+        # 线线对应
+        lineSets = self.getLineSets(self.gkoGbrPrePcs.sets, self.gkoImgPcs.line_dict.values())
+        # rout层后处理
+        self.gkoGbrLastPcs = LastProcess(lineSets, self.gkoImgPcs.nolineBorderstat, self.imageGenerater.ratek)
 
-    def ToGerberFile(self):
-        pointPairList = self.gkoImageProcess.line_dict
-        lineSets = self.gbpprss.sets
+    def getLineSets(self, lineSets: List[LineSet], pointPairs):
         newLineSets = []
-        for pointPair in pointPairList.values():
+        for pointPair in pointPairs:
             if len(pointPair) == 2:
                 newLineSets.append(self.__findset(pointPair, lineSets))
-        # def __init__(self, statements, settings, primitives, apertures, filename=None):
-        #     super(GerberFile, self).__init__(statements, settings, primitives, filename)
+        return lineSets
+
+    def ToGerberFile(self):
+        newLineSets = self.gkoGbrLastPcs.lineSets
         primitives = []
         statements = []
-        statements.extend(self.gbpprss.gerberLayer.statements[0:8])
         for set in newLineSets:
             for pice in set.GetLineSet():
                 coord = {"function": None, "x": str(pice.start[0]), "y": str(pice.start[1]), "i": None, "j": None, "op": "D02"}
-                coordstmt = CoordStmt.from_dict(coord, self.gbpprss.gerberLayer.settings)
+                coordstmt = CoordStmt.from_dict(coord, self.gkoGbrPrePcs.gerberLayer.settings)
                 statements.append(coordstmt)
                 coord = {"function": None, "x": str(pice.end[0]), "y": str(pice.end[1]), "i": None, "j": None, "op": "D01"}
-                coordstmt = CoordStmt.from_dict(coord, self.gbpprss.gerberLayer.settings)
+                coordstmt = CoordStmt.from_dict(coord, self.gkoGbrPrePcs.gerberLayer.settings)
                 statements.append(coordstmt)
                 primitives.append(pice.gbLine)
-        gerberFile = GerberFile(statements, self.gbpprss.gerberLayer.settings, primitives, None)
-        writestr = ""
+        gerberFile = GerberFile(statements, self.gkoGbrPrePcs.gerberLayer.settings, primitives, None)
+        writestr = "*\n%FSLAX26Y26*%\n%MOIN*%\n%ADD10C,0.007874*%\n%IPPOS*%\n%LNgko11.gbr*%\n%LPD*%\nG75*\nG54D10*\n"
         for statement in gerberFile.statements:
             strr = statement.to_gerber(gerberFile.settings) + "\n"
-            if "".__contains__("G75*"):
-                writestr += "G54D10*"
             writestr += strr
         return writestr
-
 
     def __findset(self, pointPair, lineSets: List[LineSet]) -> LineSet:
         ratek = self.imageGenerater.ratek
@@ -66,9 +71,12 @@ class RoutLineProcess:
 
 
 def dataPrepar(path):
+    readlayers = ["gko", "drl", "gbs", "gbo", "gbl", "gts", "gto", "gtl"]
     layers = os.listdir(path)
     gerbers = {}
     for layer in layers:
+        if not readlayers.__contains__(layer):
+            continue
         with open(f"{path}\\{layer}", "rU") as fp:
             data = fp.read()
             gerbers[layer] = data
@@ -76,7 +84,7 @@ def dataPrepar(path):
 
 
 if __name__ == '__main__':
-    path = "D:\ProjectFile\PCBFinalInspection\Work\PCBGerberFile\JP-2W2114150\JP-2W2113820"
+    path = "D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\ALL-1W2308512\JP-1W2310736"
     gerbers = dataPrepar(path)
     imageGenerater = ImageGenerater(gerbers)
     routlinepces = RoutLineProcess(imageGenerater)

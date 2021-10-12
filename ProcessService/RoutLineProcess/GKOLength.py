@@ -74,11 +74,11 @@ class GKOLength:
         new_img[:, :] = 0
         cv2.drawContours(new_img, contours, 0, color=255, thickness=1)
         self.new_img = np.uint8(new_img / 255)
-        SaveImage(r"Debug\new_img.jpg", new_img)
+        SaveImage(r"Debug\new_img.png", new_img)
         return max_len
 
     def calculate_inner_length(self, gko_img, drl_img, gtl_img):
-        SaveImage(r"Debug\gko_img.jpg", gko_img)
+        SaveImage(r"Debug\gko_img.png", gko_img)
         ret, gko_bin_img = cv2.threshold(gko_img, 250, 1, type=cv2.THRESH_BINARY_INV)
         height, width = gko_img.shape
         gko_area = height * width
@@ -142,12 +142,13 @@ class GKOLength:
             index = inner_none_board_region[i]
             mask = cv2.inRange(labels, index, index)
             inner_region_img = cv2.bitwise_or(mask, inner_region_img)
+        SaveImage(r"Debug\inner_region_img.png", inner_region_img)
         ret, inner_region_img = cv2.threshold(inner_region_img, 0, 255, type=cv2.THRESH_BINARY)
-
-        inner_process_img = cv2.dilate(inner_region_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))
-        inner_process_img = cv2.erode(inner_process_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))
+        inner_process_img = cv2.dilate(inner_region_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))  # 膨胀腐蚀去掉v割缝
+        inner_process_img = cv2.erode(inner_process_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))  # 膨胀腐蚀去掉v割缝
         inner_process_img = np.uint8(inner_process_img)
         inner_process_img = cv2.dilate(inner_process_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(7, 7)))
+        SaveImage(r"Debug\inner_process_img.png", inner_process_img)
         contours, hierarchy = cv2.findContours(inner_process_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         self.contours = contours
         inner_draw_img = np.zeros(shape=labels.shape)
@@ -156,6 +157,7 @@ class GKOLength:
         inner_len = sum(sum(inner_draw_img))
 
         # ###########################segment line################################################
+        SaveImage(r"Debug\gko_bin_img.png", gko_bin_img * 255)
         gko_bin_img = 1 - gko_bin_img
         sketech_img = morphology.skeletonize(gko_bin_img)
         sketech_img = np.uint8(sketech_img)
@@ -169,18 +171,17 @@ class GKOLength:
         ret, cross_region_points_img = cv2.threshold(neighbor_img, 2, 1, cv2.THRESH_BINARY)
         inner_draw_img = np.uint8(inner_draw_img)
         inner_draw_img = cv2.bitwise_or(inner_draw_img, self.new_img)
-        # SaveImage(r"Debug\inner_draw_img.jpg", inner_draw_img * 255)
         cross_region_points_dilate = cv2.dilate(cross_region_points_img, cv2.getStructuringElement(shape=cv2.MORPH_RECT, ksize=(5, 5)))
         intersection_lp = inner_draw_img * cross_region_points_dilate
         seg_line_img = inner_draw_img - intersection_lp
-        SaveImage(r"Debug\seg_line_img.jpg", seg_line_img * 255)
+        SaveImage(r"Debug\seg_line_img.png", seg_line_img * 255)
 
         # get line end points
         line_num, line_label_img = cv2.connectedComponents(seg_line_img)
         neighbor_line_img = cv2.filter2D(seg_line_img, -1, kernel=kernel_element)
         ret, end_points_region = cv2.threshold(neighbor_line_img, 1, 0, type=cv2.THRESH_TOZERO_INV)
         end_points_img = end_points_region * line_label_img
-        SaveImage(r"Debug\end_points_img.jpg", end_points_img * 255)
+        SaveImage(r"Debug\end_points_img.png", end_points_img * 255)
 
         line_dict = {}
         height, width = end_points_img.shape
@@ -199,7 +200,7 @@ class GKOLength:
 
 
 def dataPreparation():
-    path = "D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\ALL-1W2308512\jp-2w2282523"
+    path = "D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\ALL-1W2308512\JP-1W2310736"
     layers = os.listdir(path)
     gerbers = {}
     for layer in layers:

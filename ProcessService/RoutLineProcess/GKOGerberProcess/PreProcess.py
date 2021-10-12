@@ -1,21 +1,19 @@
-import time
-import math
-import cv2
 import os
-import numpy as np
-import gerber
+
+import cv2
+from gerber.cam import CamFile
 from gerber.gerber_statements import CoordStmt
 from gerber.primitives import Line as Gbt_Line
 from gerber.rs274x import GerberFile
-from gerber.cam import CamFile
+
+from ProcessService.RoutLineProcess.GKOGerberProcess.LinePice import LinePice
+from ProcessService.RoutLineProcess.GKOGerberProcess.LineSet import LineSet
+from ProcessService.RoutLineProcess.GKOGerberProcess.SignType import SignType
 from ProcessService.SupportFuncs.AnalyticGeometry import AnalyticGeometry as AGFuncs
-from ProcessService.RoutLineProcess.PreProcess.LinePice import LinePice
-from ProcessService.RoutLineProcess.PreProcess.LineSet import LineSet
-from ProcessService.RoutLineProcess.PreProcess.SignType import SignType
 from ProcessService.SupportFuncs.ImageGenerater import ImageGenerater
 
 
-class GerberPreProcess:
+class PreProcess:
     def __init__(self, gerberLayer: CamFile):
         self.gerberLayer = gerberLayer
         self.__init()
@@ -253,7 +251,7 @@ def dataPrepar(path):
 if __name__ == '__main__':
     gerbers = dataPrepar(r"D:\ProjectFile\PCBFinalInspection\Work\PCBGerberFile\JP-2W2114150\JP-2W2113820")
     imageGenerater = ImageGenerater(gerbers)
-    lineset = GerberPreProcess(imageGenerater.gerberLayers["gko"])
+    lineset = PreProcess(imageGenerater.gerberLayers["gko"])
     image = imageGenerater.DrawShow(lineset.sets, False, -1)
     cv2.imshow("test", image)
     kval = 13

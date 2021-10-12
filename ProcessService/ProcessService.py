@@ -18,7 +18,7 @@ class ProcessService:
 
     def GetInfoAnalysisResult(self):
         imgGrtr = self.imgGrtr
-        gkoLength = self.routLineProcess.gkoImageProcess
+        gkoLength = self.routLineProcess.gkoImgPcs
         holes = self.holes
         resultstr = f"width:{imgGrtr.width * 25.4};height:{imgGrtr.height * 25.4};area:{imgGrtr.area_in_m};holeNum:{holes.holeNum}"
         resultstr = f"{resultstr};solid_len:{gkoLength.solid_len};solid_area:{gkoLength.solid_area};solid_rate:{gkoLength.rate}"

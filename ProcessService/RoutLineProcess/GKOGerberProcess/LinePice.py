@@ -3,7 +3,7 @@ import time
 from gerber.primitives import Line as Gbt_Line
 
 import numpy as np
-from ProcessService.RoutLineProcess.PreProcess.SignType import SignType
+from ProcessService.RoutLineProcess.GKOGerberProcess.SignType import SignType
 
 
 class LinePice:
@@ -35,9 +35,11 @@ class LinePice:
         if self._lineLength == None:
             self._lineLength = np.linalg.norm(np.array([self.end[0] - self.start[0], self.end[1] - self.start[1]]))
         return self._lineLength
+
     @property
     def radius(self):
         return self.gbLine.aperture.radius
+
     def CutSelf(self):
         self.SortCutPoints()
         newlineList = []

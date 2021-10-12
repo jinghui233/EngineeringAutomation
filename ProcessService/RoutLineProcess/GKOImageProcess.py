@@ -46,7 +46,7 @@ class GKOImageProcess:
         else:
             outer_len, outer_full_image, outer_image = self.calc_outer_contour(self.__img_gko)
             rows, cols = self.calc_v_cut(self.__img_gko, outer_full_image)
-            inner_region_img = self.find_border_index(self.__img_gko, self.__img_drl, l_img, rows, cols)
+            inner_region_img, self.nolineBorderstat = self.find_border_index(self.__img_gko, self.__img_drl, l_img, rows, cols)
             inner_len, self.line_dict = self.calc_endPoints(inner_region_img, outer_image, self.__img_gko)
 
     def calc_outer_contour(self, gko_img):
@@ -136,27 +136,28 @@ class GKOImageProcess:
                 dey = abs(rows - ey).min()
                 if dsx + dsy + dex + dey < 5:
                     nolinerBorderRegionIndex.append(statindex)
+        nolinerBorderRegionIndex.extend(full_list)
+        nolinerBorderRegionIndex = list(set(nolinerBorderRegionIndex))  # 废料边的index
         linerRegionIndex.extend(nolinerBorderRegionIndex)
-        linerRegionIndex.extend(full_list)
         linerRegionIndex = list(set(linerRegionIndex))
+        inner_none_board_region = list(set(list(range(1, region_num))).difference(set(linerRegionIndex)))
         height, width = labels.shape
-        inner_region_img = np.zeros(shape=(height, width))
-
-        inner_region_img = np.uint8(inner_region_img)
-        for i in range(len(linerRegionIndex)):
-            index = linerRegionIndex[i]
+        inner_region_img = np.zeros(shape=(height, width), dtype=np.uint8)
+        for i in range(len(inner_none_board_region)):
+            index = inner_none_board_region[i]
             mask = cv2.inRange(labels, int(index), int(index))
             inner_region_img = cv2.bitwise_or(mask, inner_region_img)
-        inner_region_img = cv2.bitwise_not(inner_region_img)
         SaveImage(r"Debug/inner_region_img.png", inner_region_img)
-        return inner_region_img
+        return inner_region_img, stats[nolinerBorderRegionIndex]
 
     def calc_endPoints(self, inner_region_img, outer_image, gko_img):
         ret, gko_bin_img = cv2.threshold(gko_img, 250, 1, type=cv2.THRESH_BINARY_INV)
-        inner_process_img = cv2.dilate(inner_region_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))
-        inner_process_img = cv2.erode(inner_process_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))
+        SaveImage(r"Debug\gko_bin_img.png", gko_bin_img * 255)
+        inner_process_img = cv2.dilate(inner_region_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))  # 膨胀腐蚀去掉v割缝
+        inner_process_img = cv2.erode(inner_process_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))  # 膨胀腐蚀去掉v割缝
         inner_process_img = np.uint8(inner_process_img)
         inner_process_img = cv2.dilate(inner_process_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(7, 7)))
+        SaveImage(r"Debug\inner_process_img.png", inner_process_img)
         contours, hierarchy = cv2.findContours(inner_process_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         self.contours = contours
         inner_draw_img = np.zeros(shape=inner_region_img.shape)
@@ -181,14 +182,14 @@ class GKOImageProcess:
         cross_region_points_dilate = cv2.dilate(cross_region_points_img, cv2.getStructuringElement(shape=cv2.MORPH_RECT, ksize=(5, 5)))
         intersection_lp = inner_draw_img * cross_region_points_dilate
         seg_line_img = inner_draw_img - intersection_lp
-        SaveImage(r"Debug/seg_line_img.jpg", seg_line_img * 255)
+        SaveImage(r"Debug/seg_line_img.png", seg_line_img * 255)
 
         # get line end points
         line_num, line_label_img = cv2.connectedComponents(seg_line_img)
         neighbor_line_img = cv2.filter2D(seg_line_img, -1, kernel=kernel_element)
         ret, end_points_region = cv2.threshold(neighbor_line_img, 1, 0, type=cv2.THRESH_TOZERO_INV)
         end_points_img = end_points_region * line_label_img
-        SaveImage(r"Debug/end_points_img.jpg", end_points_img * 255)
+        SaveImage(r"Debug/end_points_img.png", end_points_img * 255)
 
         line_dict = {}
         height, width = end_points_img.shape
@@ -207,7 +208,7 @@ class GKOImageProcess:
 
 
 def dataPreparation():
-    path = "D:\ProjectFile\PCBFinalInspection\Work\PCBGerberFile\ALL-2W1557348\ALL-2W1556371"
+    path = "D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\ALL-1W2308512\JP-1W2310736"
     layers = os.listdir(path)
     gerbers = {}
     for layer in layers:

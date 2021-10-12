@@ -271,11 +271,13 @@ class ImageGenerater:
         return image
 
 
-def dataPreparation():
-    path = r'C:\Users\96941\Desktop\JP-2W1557520'
+def dataPrepar(path):
+    readlayers = ["gko", "drl", "gbs", "gbo", "gbl", "gts", "gto", "gtl"]
     layers = os.listdir(path)
     gerbers = {}
     for layer in layers:
+        if not readlayers.__contains__(layer):
+            continue
         with open(f"{path}\\{layer}", "rU") as fp:
             data = fp.read()
             gerbers[layer] = data
@@ -283,12 +285,13 @@ def dataPreparation():
 
 
 def test1():
-    gerbers = dataPreparation()  # 准备数据
+    path = "D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\ALL-1W2308512\jp-2w2282523"
+    gerbers = dataPrepar(path)
     gbGenerater = ImageGenerater(gerbers)  # 图片生成器
-    imagegko = gbGenerater.getlayerimg("gts")
+    imagegko = gbGenerater.getlayerimg2("gko",1)
     cv2.imshow("test", imagegko)
     cv2.waitKey(-1)
-    cv2.imwrite("Debug/gts.jpg", imagegko)
+    cv2.imwrite("Debug/gko.png", imagegko)
 
 
 def test2():

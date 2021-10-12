@@ -1,7 +1,7 @@
 from typing import List
 
-from ProcessService.RoutLineProcess.PreProcess.LinePice import LinePice
-from ProcessService.RoutLineProcess.PreProcess.SignType import SignType
+from ProcessService.RoutLineProcess.GKOGerberProcess.LinePice import LinePice
+from ProcessService.RoutLineProcess.GKOGerberProcess.SignType import SignType
 from gerber.primitives import Line as Gbt_Line
 
 
@@ -88,7 +88,7 @@ class LineSet:
         for line in self.__lines:
             line.HasCompared = False
             if line.signType == SignType.Unchange:
-                newLines.__addLine(LinePice(line))
+                newLines.__addLine(line)
             if line.signType == SignType.Cut:
                 temp = line.CutSelf()
                 for tempp in temp:
