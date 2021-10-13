@@ -260,11 +260,10 @@ class ImageGenerater:
             for line in set.GetLineSet():
                 start = self.__p_k_offset_p(line.start, ratek, offset)  # 获取起点
                 end = self.__p_k_offset_p(line.end, ratek, offset)  # 获取终点
-                if isinstance(line.aperture, gbCircle):
-                    r = line.aperture.radius * 2 * ratek  # 获取半径
-                    r = math.ceil(r)  # 半径向上取整
-                    if r > 0:
-                        cv2.line(image, start, end, randomColor, r)
+                r = line.radius * 2 * ratek  # 获取半径
+                r = math.ceil(r)  # 半径向上取整
+                if r > 0:
+                    cv2.line(image, start, end, randomColor, r)
                 if step:
                     cv2.imshow("test", image)
                     cv2.waitKey(waitKey)

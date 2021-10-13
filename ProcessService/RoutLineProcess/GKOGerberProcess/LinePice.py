@@ -31,6 +31,10 @@ class LinePice:
         return self.gbLine.aperture
 
     @property
+    def angle(self):
+        return self.gbLine.angle
+
+    @property
     def LineLength(self):
         if self._lineLength == None:
             self._lineLength = np.linalg.norm(np.array([self.end[0] - self.start[0], self.end[1] - self.start[1]]))

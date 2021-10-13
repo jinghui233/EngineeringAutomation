@@ -5,9 +5,11 @@ from gerber.gerber_statements import CoordStmt
 from gerber.primitives import Line as Gbt_Line
 from gerber.rs274x import GerberFile
 
-from ProcessService.RoutLineProcess.GKOGerberProcess.LineSet import LineSet
-from ProcessService.RoutLineProcess.GKOGerberProcess.PreProcess import PreProcess
-from ProcessService.RoutLineProcess.GKOGerberProcess.LastProcess import LastProcess
+# from ProcessService.RoutLineProcess.GKOGerberProcess.LineSet import LineSet
+# from ProcessService.RoutLineProcess.GKOGerberProcess.PreProcess import PreProcess
+# from ProcessService.RoutLineProcess.GKOGerberProcess.LastProcess import LastProcess
+from ProcessService.RoutLineProcess.GKOGerberProcess2.LinePiceSet import LinePice, LineSet
+from ProcessService.RoutLineProcess.GKOGerberProcess2.GKOGerberProcess import GKOGerberProcess
 from ProcessService.RoutLineProcess.GKOImageProcess import GKOImageProcess
 from ProcessService.SupportFuncs.ImageGenerater import ImageGenerater
 
@@ -20,34 +22,36 @@ class RoutLineProcess:
     def __init(self):
         # 图像处理部分
         self.gkoImgPcs = GKOImageProcess(self.imageGenerater)
+        self.gkoGbrPcs = GKOGerberProcess(self.imageGenerater.gerberLayers["gko"])
         # 线层去重切割分组预处理
-        self.gkoGbrPrePcs = PreProcess(self.imageGenerater.gerberLayers["gko"])
+        self.gkoGbrPcs.PreProc()
         # 线线对应
-        lineSets = self.getLineSets(self.gkoGbrPrePcs.sets, self.gkoImgPcs.line_dict.values())
+        lineSets = self.getLineSets(self.gkoGbrPcs.sets, self.gkoImgPcs.line_dict.values())
+        self.gkoGbrPcs.sets = lineSets
         # rout层后处理
-        self.gkoGbrLastPcs = LastProcess(lineSets, self.gkoImgPcs.nolineBorderstat, self.imageGenerater.ratek)
+        self.gkoGbrPcs.LastProc()
 
     def getLineSets(self, lineSets: List[LineSet], pointPairs):
         newLineSets = []
         for pointPair in pointPairs:
             if len(pointPair) == 2:
                 newLineSets.append(self.__findset(pointPair, lineSets))
-        return lineSets
+        return newLineSets
 
     def ToGerberFile(self):
-        newLineSets = self.gkoGbrLastPcs.lineSets
+        lineSets = self.gkoGbrPcs.sets
         primitives = []
         statements = []
-        for set in newLineSets:
+        for set in lineSets:
             for pice in set.GetLineSet():
                 coord = {"function": None, "x": str(pice.start[0]), "y": str(pice.start[1]), "i": None, "j": None, "op": "D02"}
-                coordstmt = CoordStmt.from_dict(coord, self.gkoGbrPrePcs.gerberLayer.settings)
+                coordstmt = CoordStmt.from_dict(coord, self.gkoGbrPcs.gerberLayer.settings)
                 statements.append(coordstmt)
                 coord = {"function": None, "x": str(pice.end[0]), "y": str(pice.end[1]), "i": None, "j": None, "op": "D01"}
-                coordstmt = CoordStmt.from_dict(coord, self.gkoGbrPrePcs.gerberLayer.settings)
+                coordstmt = CoordStmt.from_dict(coord, self.gkoGbrPcs.gerberLayer.settings)
                 statements.append(coordstmt)
                 primitives.append(pice.gbLine)
-        gerberFile = GerberFile(statements, self.gkoGbrPrePcs.gerberLayer.settings, primitives, None)
+        gerberFile = GerberFile(statements, self.gkoGbrPcs.gerberLayer.settings, primitives, None)
         writestr = "*\n%FSLAX26Y26*%\n%MOIN*%\n%ADD10C,0.007874*%\n%IPPOS*%\n%LNgko11.gbr*%\n%LPD*%\nG75*\nG54D10*\n"
         for statement in gerberFile.statements:
             strr = statement.to_gerber(gerberFile.settings) + "\n"
@@ -59,10 +63,10 @@ class RoutLineProcess:
         mindistance = 10000000000
         minlineSet = None
         for lineSet in lineSets:
-            d_start1 = abs(pointPair[0][0] - lineSet.FirstPoint[0] * ratek) + abs(pointPair[0][1] - lineSet.FirstPoint[1] * ratek)
-            d_end1 = abs(pointPair[1][0] - lineSet.LastPoint[0] * ratek) + abs(pointPair[1][1] - lineSet.LastPoint[1] * ratek)
-            d_start2 = abs(pointPair[0][0] - lineSet.LastPoint[0] * ratek) + abs(pointPair[0][1] - lineSet.LastPoint[1] * ratek)
-            d_end2 = abs(pointPair[1][0] - lineSet.FirstPoint[0] * ratek) + abs(pointPair[1][1] - lineSet.FirstPoint[1] * ratek)
+            d_start1 = abs(pointPair[0][0] - lineSet.start[0] * ratek) + abs(pointPair[0][1] - lineSet.start[1] * ratek)
+            d_end1 = abs(pointPair[1][0] - lineSet.end[0] * ratek) + abs(pointPair[1][1] - lineSet.end[1] * ratek)
+            d_start2 = abs(pointPair[0][0] - lineSet.end[0] * ratek) + abs(pointPair[0][1] - lineSet.end[1] * ratek)
+            d_end2 = abs(pointPair[1][0] - lineSet.start[0] * ratek) + abs(pointPair[1][1] - lineSet.start[1] * ratek)
             curdistance = min((d_start1 + d_end1), (d_start2 + d_end2))
             if curdistance < mindistance:
                 mindistance = curdistance

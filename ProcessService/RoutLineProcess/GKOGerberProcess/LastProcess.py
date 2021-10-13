@@ -17,7 +17,62 @@ class LastProcess:
     def __init__(self, lineSets: List[LineSet], stats, ratek):
         self.lineSets = lineSets
         self.__applyOffset(lineSets, stats, ratek)
-    def __reCombineSets(self):
+
+    def __CombineSets(self, sets):
+        thresh = 0.01
+        usethresh = 1
+        flag = True
+        while flag:
+            flag = False
+            for curSet in sets:
+                if curSet.endPoint_isolated:
+                    continue
+                SameSets = self.FindCoincide(curSet, sets)
+                toEnd = []
+                toStart = []
+                for SameSet in SameSets:
+                    d_curEnd_nxtStart = AGFuncs.P_to_P_BlockDistance(curSet.LastPoint, SameSet.FirstPoint)
+                    d_nxtEnd_curStart = AGFuncs.P_to_P_BlockDistance(curSet.FirstPoint, SameSet.LastPoint)
+                    d_curEnd_nxtEnd = AGFuncs.P_to_P_BlockDistance(curSet.LastPoint, SameSet.LastPoint)
+                    d_curStart_nxtStart = AGFuncs.P_to_P_BlockDistance(curSet.FirstPoint, SameSet.FirstPoint)
+                    if d_curEnd_nxtStart < (curSet.LastLine.radius + SameSet.FirstLine.radius) * (usethresh - 1) + thresh * usethresh:
+                        toEnd.append((SameSet, False))
+                    if d_nxtEnd_curStart < (curSet.FirstLine.radius + SameSet.LastLine.radius) * (usethresh - 1) + thresh * usethresh:
+                        toStart.append((SameSet, False))
+                    if d_curEnd_nxtEnd < (curSet.LastLine.radius + SameSet.LastLine.radius) * (usethresh - 1) + thresh * usethresh:
+                        toEnd.append((SameSet, True))
+                    if d_curStart_nxtStart < (curSet.FirstLine.radius + SameSet.FirstLine.radius) * (usethresh - 1) + thresh * usethresh:
+                        toStart.append((SameSet, True))
+                if len(toEnd) == 1:
+                    curSet.Combine(toEnd[0][0], True, toEnd[0][1])
+                    sets.remove(toEnd[0][0])
+                    flag = True
+                if len(toStart) == 1:
+                    curSet.Combine(toStart[0][0], False, toStart[0][1])
+                    if sets.__contains__(toStart[0][0]):
+                        sets.remove(toStart[0][0])
+                    flag = True
+                if flag:
+                    break
+                else:
+                    curSet.endPoint_isolated = True
+
+    def FindCoincide(self, lineSet1: LineSet, sets):  # 寻找bounding_box相交的项
+        coincideSets = []
+        for lineSet2 in sets:
+            if lineSet1 != lineSet2:
+                if AGFuncs.IsCoincide(lineSet1.bounding_box, lineSet2.bounding_box):
+                    coincideSets.append(lineSet2)
+        return coincideSets
+
+    def __CombinePices(self, set: LineSet):
+        prePice = None
+        for curPice in set.GetLineSet():
+            if prePice != None:
+                if abs(curPice.angle - prePice.angle) < 0.00000001:
+
+
+    def line_line(self, line1: LinePice, line2: LinePice):  # 判断两条线共线
 
     def __applyOffset(self, lineSets, stats, ratek):
         rectslines = []
@@ -25,6 +80,7 @@ class LastProcess:
             # 左右上下
             rectslines.append((((stat[0], stat[1]), (stat[0], stat[1] + stat[3])), ((stat[0] + stat[2], stat[1]), (stat[0] + stat[2], stat[1] + stat[3])),
                                ((stat[0], stat[1]), (stat[0] + stat[2], stat[1])), ((stat[0], stat[1] + stat[3]), (stat[0] + stat[2], stat[1] + stat[3]))))
+
         offset = 0.001
         for lineSet in lineSets:
             for curlinePice in lineSet.GetLineSet():
