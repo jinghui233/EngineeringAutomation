@@ -67,11 +67,11 @@ class GKOLength:
         new_img[:, :] = 0
         cv2.drawContours(new_img, contours, 0, color=255, thickness=1)
         self.new_img = np.uint8(new_img / 255)
-        SaveImage(r"Debug\new_img.png", new_img)
+        SaveImage(r"../Debug/new_img.png", new_img)
         return max_len
 
     def calculate_inner_length(self, gko_img, l_img):
-        SaveImage(r"Debug\gko_img.png", gko_img)
+        SaveImage(r"../Debug/gko_img.png", gko_img)
         ret, gko_bin_img = cv2.threshold(gko_img, 250, 1, type=cv2.THRESH_BINARY_INV)
         region_num, labels, stats, centroids = cv2.connectedComponentsWithStats(gko_bin_img, connectivity=4)
         labels = np.uint8(labels)
@@ -107,13 +107,13 @@ class GKOLength:
             index = inner_none_board_region[i]
             mask = cv2.inRange(labels, index, index)
             inner_region_img = cv2.bitwise_or(mask, inner_region_img)
-        SaveImage(r"Debug\inner_region_img.png", inner_region_img)
+        SaveImage(r"../Debug/inner_region_img.png", inner_region_img)
         ret, inner_region_img = cv2.threshold(inner_region_img, 0, 255, type=cv2.THRESH_BINARY)
 
         inner_process_img = cv2.dilate(inner_region_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))
         inner_process_img = cv2.erode(inner_process_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))
         inner_process_img = cv2.dilate(inner_process_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(7, 7)))
-        SaveImage(r"Debug\inner_process_img.png", inner_process_img)
+        SaveImage(r"../Debug/inner_process_img.png", inner_process_img)
         contours, hierarchy = cv2.findContours(inner_process_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         self.contours = contours
         inner_draw_img = np.zeros(shape=labels.shape)
@@ -138,13 +138,13 @@ class GKOLength:
         SaveImage(r"Debug\cross_region_points_img.png", cross_region_points_img * 255)
         inner_draw_img = np.uint8(inner_draw_img)
         inner_draw_img = cv2.bitwise_or(inner_draw_img, self.new_img)
-        SaveImage(r"Debug\inner_draw_img.png", inner_draw_img * 255)
+        SaveImage(r"../Debug/inner_draw_img.png", inner_draw_img * 255)
         cross_region_points_dilate = cv2.dilate(cross_region_points_img, cv2.getStructuringElement(shape=cv2.MORPH_RECT, ksize=(7, 7)))
         SaveImage(r"Debug\cross_region_points_dilate.png", cross_region_points_dilate * 255)
         intersection_lp = inner_draw_img * cross_region_points_dilate
         SaveImage(r"Debug\intersection_lp.png", intersection_lp * 255)
         seg_line_img = inner_draw_img - intersection_lp
-        SaveImage(r"Debug\seg_line_img.png", seg_line_img * 255)
+        SaveImage(r"../Debug/seg_line_img.png", seg_line_img * 255)
 
         # get line end points
         line_num, line_label_img = cv2.connectedComponents(seg_line_img)
@@ -155,7 +155,7 @@ class GKOLength:
         SaveImage(r"Debug\end_points_region.png", end_points_region * 255)
         cross_region_points_dilate = cv2.dilate(cross_region_points_dilate, cv2.getStructuringElement(shape=cv2.MORPH_RECT, ksize=(3, 3)))
         end_points_img = cross_region_points_dilate * line_label_img
-        SaveImage(r"Debug\end_points_img.png", end_points_img * 255)
+        SaveImage(r"../Debug/end_points_img.png", end_points_img * 255)
 
         line_dict = {}
         height, width = end_points_img.shape

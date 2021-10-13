@@ -2,15 +2,14 @@ import os
 from typing import List
 
 from gerber.gerber_statements import CoordStmt
-from gerber.primitives import Line as Gbt_Line
 from gerber.rs274x import GerberFile
 
 # from ProcessService.RoutLineProcess.GKOGerberProcess.LineSet import LineSet
 # from ProcessService.RoutLineProcess.GKOGerberProcess.PreProcess import PreProcess
 # from ProcessService.RoutLineProcess.GKOGerberProcess.LastProcess import LastProcess
-from ProcessService.RoutLineProcess.GKOGerberProcess2.LinePiceSet import LinePice, LineSet
+from ProcessService.RoutLineProcess.GKOGerberProcess2.LinePiceSet import LineSet
 from ProcessService.RoutLineProcess.GKOGerberProcess2.GKOGerberProcess import GKOGerberProcess
-from ProcessService.RoutLineProcess.GKOImageProcess import GKOImageProcess
+from ProcessService.RoutLineProcess.GKOImageProcess.GKOImageProcess import GKOImageProcess
 from ProcessService.SupportFuncs.ImageGenerater import ImageGenerater
 
 

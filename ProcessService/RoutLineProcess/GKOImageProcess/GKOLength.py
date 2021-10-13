@@ -1,5 +1,4 @@
 import copy
-import math
 from collections import Counter
 import os
 import cv2
@@ -21,7 +20,7 @@ def ShowImage(image):
         cv2.waitKey(-1)
 
 
-class GKOImageProcess:
+class GKOLength:
     def __init__(self, imageGenerater: ImageGenerater):
         self.imageGenerater = imageGenerater
         self.__init()
@@ -44,16 +43,22 @@ class GKOImageProcess:
             self.solid_area = 0  # 板面积
             self.rate = 0
         else:
-            outer_len, outer_full_image, outer_image = self.calc_outer_contour(self.__img_gko)
-            rows, cols = self.calc_v_cut(self.__img_gko, outer_full_image)
-            inner_region_img, self.nolineBorderstat = self.find_border_index(self.__img_gko, self.__img_drl, l_img, rows, cols)
-            inner_len, self.line_dict = self.calc_endPoints(inner_region_img, outer_image, self.__img_gko)
+            outer_len = self.calculate_outer_length(self.__img_gko)
+            inner_len, area, self.line_dict = self.calculate_inner_length(self.__img_gko, self.__img_drl, l_img)
+            sum_len = outer_len + inner_len
+            k = self.imageGenerater.k_in_m
+            self.solid_len = sum_len * k  # 锣带长度
+            self.solid_area = area * k * k  # 板面积
+            self.rate = self.solid_len / self.solid_area
 
-    def calc_outer_contour(self, gko_img):
+    def calculate_outer_length(self, gko_img):
         ret, bin_img = cv2.threshold(gko_img, 250, 255, type=cv2.THRESH_BINARY_INV)
+        height, width = gko_img.shape
 
-        outer_image = 255 - bin_img
-        contours, hierarchy = cv2.findContours(outer_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+        expand_bin_img = cv2.copyMakeBorder(bin_img, 3, 3, 3, 3, cv2.BORDER_CONSTANT, 0)
+        new_img = 255 - bin_img
+        contours, hierarchy = cv2.findContours(new_img, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+        expand_height, expand_width = expand_bin_img.shape
 
         max_len = 0
         max_index = 0
@@ -61,48 +66,30 @@ class GKOImageProcess:
             if len(contours[i]) > max_len:
                 max_len = len(contours[i])
                 max_index = i
-        outer_image[:, :] = 0
-        cv2.drawContours(outer_image, contours, max_index, color=255, thickness=-1)
-        outer_image = cv2.erode(outer_image, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(7, 7)))
-        outer_image = cv2.dilate(outer_image, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(7, 7)))
-        contours, hierarchy = cv2.findContours(outer_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-        outer_image[:, :] = 0
-        cv2.drawContours(outer_image, contours, 0, color=255, thickness=1)
-        SaveImage(r"Debug/outer_image.png", outer_image)  # 外轮廓图片
-        expanded_outer_image = cv2.copyMakeBorder(outer_image, 1, 1, 1, 1, cv2.BORDER_CONSTANT, 0)
-        cv2.floodFill(expanded_outer_image, None, (0, 0), 255)
-        outer_full_image = cv2.bitwise_not(expanded_outer_image)
-        outer_full_image = outer_full_image[1:-1, 1:-1]
-        outer_full_image = cv2.dilate(outer_full_image, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(3, 3)))
-        SaveImage(r"Debug/outer_full_image.png", outer_full_image)  # 外轮廓填充图片
-        return max_len, np.uint8(outer_full_image / 255), np.uint8(outer_image / 255)
+        new_img[:, :] = 0
+        cv2.drawContours(new_img, contours, max_index, color=255, thickness=-1)
+        new_img = cv2.erode(new_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(7, 7)))
+        new_img = cv2.dilate(new_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(7, 7)))
+        contours, hierarchy = cv2.findContours(new_img, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+        new_img[:, :] = 0
+        cv2.drawContours(new_img, contours, 0, color=255, thickness=1)
+        self.new_img = np.uint8(new_img / 255)
+        SaveImage(r"../Debug/new_img.png", new_img)
+        return max_len
 
-    def calc_v_cut(self, gko_img, outer_full_image):
-        _, gko_bin_img = cv2.threshold(gko_img, 250, 1, cv2.THRESH_BINARY)
-        rows = []
-        for rowindex in range(gko_bin_img.shape[0]):
-            gko_sum = gko_bin_img[rowindex, :].sum()
-            outer_full_sum = outer_full_image[rowindex, :].sum()
-            if gko_sum >= outer_full_sum and gko_sum != 0:
-                rows.append(rowindex)
-        cols = []
-        for colindex in range(gko_bin_img.shape[1]):
-            gko_sum = gko_bin_img[:, colindex].sum()
-            outer_full_sum = outer_full_image[:, colindex].sum()
-            if gko_sum >= outer_full_sum and gko_sum != 0:
-                cols.append(colindex)
-        return rows, cols
-
-    def find_border_index(self, gko_img, drl_img, gtl_img, rows, cols):
-        SaveImage(r"Debug/gko_img.png", gko_img)
+    def calculate_inner_length(self, gko_img, drl_img, gtl_img):
+        SaveImage(r"../Debug/gko_img.png", gko_img)
         ret, gko_bin_img = cv2.threshold(gko_img, 250, 1, type=cv2.THRESH_BINARY_INV)
         height, width = gko_img.shape
         gko_area = height * width
         region_num, labels, stats, centroids = cv2.connectedComponentsWithStats(gko_bin_img, connectivity=4)
+        draw_label = copy.deepcopy(gko_img)
+        for i in range(1, region_num):
+            cv2.putText(draw_label, str(i), org=(int(centroids[i][0]), int(centroids[i][1])), fontFace=2, fontScale=3, color=(255), thickness=2)
         labels = np.uint8(labels)
-        SaveImage(r"Debug/labels.png", labels)
+
         # outer region
-        dilate_img = cv2.dilate(labels, kernel=cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(9, 9)))
+        dilate_img = cv2.dilate(labels, kernel=cv2.getStructuringElement(cv2.MORPH_ELLIPSE, ksize=(9, 9), anchor=(-1, -1)))
         left_side = dilate_img[0, :]
         right_side = dilate_img[-1, :]
         up_side = dilate_img[:, 0]
@@ -115,57 +102,62 @@ class GKOImageProcess:
         outer_region_index = set(full_list)
 
         # board region
-        ret, d_bin_img = cv2.threshold(drl_img, 250, 1, type=cv2.THRESH_BINARY)
+        resize_d_img = cv2.resize(drl_img, dsize=(width, height))
+        ret, d_bin_img = cv2.threshold(resize_d_img, 250, 1, type=cv2.THRESH_BINARY)
         invert_d_bin_img = 1 - d_bin_img
 
-        ret, l_bin_img = cv2.threshold(gtl_img, 250, 1, type=cv2.THRESH_BINARY)
+        resize_l = cv2.resize(gtl_img, dsize=(width, height))
+        ret, l_bin_img = cv2.threshold(resize_l, 250, 1, type=cv2.THRESH_BINARY)
         intersection_kl = labels * l_bin_img * invert_d_bin_img
 
         hist_l = cv2.calcHist([intersection_kl], [0], None, [region_num], [0, region_num])
-        linerRegionIndex = list(np.where(hist_l > 0)[0])
-        linerRegionIndex.remove(0)
-        nolinerBorderRegionIndex = []
-        rows, cols = np.array(rows), np.array(cols)
-        for statindex in range(len(stats)):
-            stat = stats[statindex]
-            if math.fabs(stat[4] - stat[2] * stat[3]) < 10:  # 判断是矩形
-                sx, sy, ex, ey = stat[0], stat[1], stat[0] + stat[2], stat[1] + stat[3]
-                dsx = abs(cols - sx).min()
-                dsy = abs(rows - sy).min()
-                dex = abs(cols - ex).min()
-                dey = abs(rows - ey).min()
-                if dsx + dsy + dex + dey < 5:
-                    nolinerBorderRegionIndex.append(statindex)
-        nolinerBorderRegionIndex.extend(full_list)
-        nolinerBorderRegionIndex = list(set(nolinerBorderRegionIndex))  # 废料边的index
-        linerRegionIndex.extend(nolinerBorderRegionIndex)
-        linerRegionIndex = list(set(linerRegionIndex))
-        inner_none_board_region = list(set(list(range(1, region_num))).difference(set(linerRegionIndex)))
+        region_area = hist_l[1:]
+        cluster_data = region_area.reshape(-1, 1)
+        cluster_result = DBSCAN(eps=300, min_samples=1).fit(cluster_data)
+        sum_region_area = [0] * (max(cluster_result.labels_) + 1)
+        for i in range(1, len(region_area)):
+            sum_region_area[cluster_result.labels_[i]] += region_area[i]
+        board_region_label = sum_region_area.index(max(sum_region_area))
+        board_region_index = []
+        for i in range(len(cluster_result.labels_)):
+            if cluster_result.labels_[i] == board_region_label:
+                board_region_index.append(i + 1)
+
+        # none board region
+        none_board_region = set(list(range(1, region_num))).difference(set(board_region_index))
+        inner_none_board_region = list(set(none_board_region).difference(set(outer_region_index)))
+
+        # inner none board region length
         height, width = labels.shape
-        inner_region_img = np.zeros(shape=(height, width), dtype=np.uint8)
+        inner_region_img = np.zeros(shape=(height, width))
+        # for i in range(len(inner_none_board_region)):
+        #     index = inner_none_board_region[i]
+        #     x, y, w, h, area = stats[index]
+        #     for row in range(y, y + h):
+        #         for col in range(x, x + w):
+        #             if labels[row][col] == index:
+        #                 inner_region_img[row][col] = 1
+        inner_region_img = np.uint8(inner_region_img)
         for i in range(len(inner_none_board_region)):
             index = inner_none_board_region[i]
-            mask = cv2.inRange(labels, int(index), int(index))
+            mask = cv2.inRange(labels, index, index)
             inner_region_img = cv2.bitwise_or(mask, inner_region_img)
-        SaveImage(r"Debug/inner_region_img.png", inner_region_img)
-        return inner_region_img, stats[nolinerBorderRegionIndex]
-
-    def calc_endPoints(self, inner_region_img, outer_image, gko_img):
-        ret, gko_bin_img = cv2.threshold(gko_img, 250, 1, type=cv2.THRESH_BINARY_INV)
-        SaveImage(r"Debug\gko_bin_img.png", gko_bin_img * 255)
+        SaveImage(r"../Debug/inner_region_img.png", inner_region_img)
+        ret, inner_region_img = cv2.threshold(inner_region_img, 0, 255, type=cv2.THRESH_BINARY)
         inner_process_img = cv2.dilate(inner_region_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))  # 膨胀腐蚀去掉v割缝
         inner_process_img = cv2.erode(inner_process_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(5, 5)))  # 膨胀腐蚀去掉v割缝
         inner_process_img = np.uint8(inner_process_img)
         inner_process_img = cv2.dilate(inner_process_img, cv2.getStructuringElement(cv2.MORPH_RECT, ksize=(7, 7)))
-        SaveImage(r"Debug\inner_process_img.png", inner_process_img)
+        SaveImage(r"../Debug/inner_process_img.png", inner_process_img)
         contours, hierarchy = cv2.findContours(inner_process_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         self.contours = contours
-        inner_draw_img = np.zeros(shape=inner_region_img.shape)
+        inner_draw_img = np.zeros(shape=labels.shape)
         for i in range(len(contours)):
             cv2.drawContours(inner_draw_img, contours, i, color=(1), thickness=1)
         inner_len = sum(sum(inner_draw_img))
 
         # ###########################segment line################################################
+        SaveImage(r"../Debug/gko_bin_img.png", gko_bin_img * 255)
         gko_bin_img = 1 - gko_bin_img
         sketech_img = morphology.skeletonize(gko_bin_img)
         sketech_img = np.uint8(sketech_img)
@@ -178,18 +170,18 @@ class GKOImageProcess:
 
         ret, cross_region_points_img = cv2.threshold(neighbor_img, 2, 1, cv2.THRESH_BINARY)
         inner_draw_img = np.uint8(inner_draw_img)
-        inner_draw_img = cv2.bitwise_or(inner_draw_img, outer_image)
+        inner_draw_img = cv2.bitwise_or(inner_draw_img, self.new_img)
         cross_region_points_dilate = cv2.dilate(cross_region_points_img, cv2.getStructuringElement(shape=cv2.MORPH_RECT, ksize=(5, 5)))
         intersection_lp = inner_draw_img * cross_region_points_dilate
         seg_line_img = inner_draw_img - intersection_lp
-        SaveImage(r"Debug/seg_line_img.png", seg_line_img * 255)
+        SaveImage(r"../Debug/seg_line_img.png", seg_line_img * 255)
 
         # get line end points
         line_num, line_label_img = cv2.connectedComponents(seg_line_img)
         neighbor_line_img = cv2.filter2D(seg_line_img, -1, kernel=kernel_element)
         ret, end_points_region = cv2.threshold(neighbor_line_img, 1, 0, type=cv2.THRESH_TOZERO_INV)
         end_points_img = end_points_region * line_label_img
-        SaveImage(r"Debug/end_points_img.png", end_points_img * 255)
+        SaveImage(r"../Debug/end_points_img.png", end_points_img * 255)
 
         line_dict = {}
         height, width = end_points_img.shape
@@ -204,7 +196,7 @@ class GKOImageProcess:
                 if end_points_img[i][j] > 0:
                     line_dict[end_points_img[i][j]].append([j, i])
 
-        return inner_len, line_dict
+        return inner_len, gko_area, line_dict
 
 
 def dataPreparation():
@@ -221,4 +213,4 @@ def dataPreparation():
 if __name__ == '__main__':
     gerbers = dataPreparation()
     imageGenerater = ImageGenerater(gerbers)
-    gkoLength = GKOImageProcess(imageGenerater)
+    gkoLength = GKOLength(imageGenerater)
