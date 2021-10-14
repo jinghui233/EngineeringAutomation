@@ -112,7 +112,7 @@ class GKOImageProcess:
         up_conter = Counter(up_side)
         bottom_conter = Counter(bottom_side)
         full_list = list(left_conter.keys()) + list(right_conter.keys()) + list(up_conter.keys()) + list(bottom_conter.keys())
-        outer_region_index = set(full_list)
+        full_list.append(1)  # 加最外圈border区域
 
         # board region
         ret, d_bin_img = cv2.threshold(drl_img, 250, 1, type=cv2.THRESH_BINARY)
@@ -125,17 +125,18 @@ class GKOImageProcess:
         linerRegionIndex = list(np.where(hist_l > 0)[0])
         linerRegionIndex.remove(0)
         nolinerBorderRegionIndex = []
-        rows, cols = np.array(rows), np.array(cols)
-        for statindex in range(len(stats)):
-            stat = stats[statindex]
-            if math.fabs(stat[4] - stat[2] * stat[3]) < 10:  # 判断是矩形
-                sx, sy, ex, ey = stat[0], stat[1], stat[0] + stat[2], stat[1] + stat[3]
-                dsx = abs(cols - sx).min()
-                dsy = abs(rows - sy).min()
-                dex = abs(cols - ex).min()
-                dey = abs(rows - ey).min()
-                if dsx + dsy + dex + dey < 5:
-                    nolinerBorderRegionIndex.append(statindex)
+        if rows.__len__() > 0 and cols.__len__() > 0:
+            rows, cols = np.array(rows), np.array(cols)
+            for statindex in range(len(stats)):
+                stat = stats[statindex]
+                if math.fabs(stat[4] - stat[2] * stat[3]) < 10:  # 判断是矩形
+                    sx, sy, ex, ey = stat[0], stat[1], stat[0] + stat[2], stat[1] + stat[3]
+                    dsx = abs(cols - sx).min()
+                    dsy = abs(rows - sy).min()
+                    dex = abs(cols - ex).min()
+                    dey = abs(rows - ey).min()
+                    if dsx + dsy + dex + dey < 5:
+                        nolinerBorderRegionIndex.append(statindex)
         nolinerBorderRegionIndex.extend(full_list)
         nolinerBorderRegionIndex = list(set(nolinerBorderRegionIndex))  # 废料边的index
         linerRegionIndex.extend(nolinerBorderRegionIndex)
@@ -169,18 +170,22 @@ class GKOImageProcess:
         gko_bin_img = 1 - gko_bin_img
         sketech_img = morphology.skeletonize(gko_bin_img)
         sketech_img = np.uint8(sketech_img)
+        SaveImage(r"../Debug/sketech_img.png", sketech_img * 255)
         kernel_element = np.array((
             [1, 1, 1],
             [1, 0, 1],
             [1, 1, 1]), dtype="float32")
         neighbor_img = cv2.filter2D(sketech_img, -1, kernel_element)
         neighbor_img = sketech_img * neighbor_img
+        SaveImage(r"../Debug/neighbor_img.png", neighbor_img * 255)
 
         ret, cross_region_points_img = cv2.threshold(neighbor_img, 2, 1, cv2.THRESH_BINARY)
         inner_draw_img = np.uint8(inner_draw_img)
         inner_draw_img = cv2.bitwise_or(inner_draw_img, outer_image)
+        SaveImage(r"../Debug/inner_draw_img.png", inner_draw_img * 255)
         cross_region_points_dilate = cv2.dilate(cross_region_points_img, cv2.getStructuringElement(shape=cv2.MORPH_RECT, ksize=(5, 5)))
         intersection_lp = inner_draw_img * cross_region_points_dilate
+        SaveImage(r"../Debug/intersection_lp.png", intersection_lp * 255)
         seg_line_img = inner_draw_img - intersection_lp
         SaveImage(r"../Debug/seg_line_img.png", seg_line_img * 255)
 
@@ -203,7 +208,14 @@ class GKOImageProcess:
             for j in range(width):
                 if end_points_img[i][j] > 0:
                     line_dict[end_points_img[i][j]].append([j, i])
+        for pointpair in line_dict.values():
+            for point in pointpair:
+                cv2.circle(gko_img, point, 4, 255, 1)
+            # if len(pointpair) == 2:
+            #     cv2.circle(gko_img, pointpair[0], 4, 255, 1)
+            #     cv2.circle(gko_img, pointpair[1], 4, 255, 1)
 
+        SaveImage(r"../Debug/result_gko_img.png", gko_img)
         return inner_len, line_dict
 
 

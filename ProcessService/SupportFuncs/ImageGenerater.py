@@ -241,7 +241,7 @@ class ImageGenerater:
         ratek = self.ratek
         padding = 1
         offset = (self.offset[0] - padding / ratek, self.offset[1] - padding / ratek)
-        width, height = math.ceil((bounds[0][1] - bounds[0][0]) * ratek + padding * 2), math.ceil((bounds[1][1] - bounds[1][0]) * ratek + padding * 2)
+        width, height = math.ceil((bounds[0][1] - bounds[0][0]) * ratek + padding * 2 + 1), math.ceil((bounds[1][1] - bounds[1][0]) * ratek + padding * 2 + 1)
         image = np.zeros((height, width), np.uint8)
         self.primitivesTraverse(image, gerberLayer.primitives, ratek, offset, linethickness)
         return image
@@ -287,7 +287,7 @@ def test1():
     path = "D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\ALL-1W2308512\jp-2w2282523"
     gerbers = dataPrepar(path)
     gbGenerater = ImageGenerater(gerbers)  # 图片生成器
-    imagegko = gbGenerater.getlayerimg2("gko",1)
+    imagegko = gbGenerater.getlayerimg2("gko", 1)
     cv2.imshow("test", imagegko)
     cv2.waitKey(-1)
     cv2.imwrite("Debug/gko.png", imagegko)

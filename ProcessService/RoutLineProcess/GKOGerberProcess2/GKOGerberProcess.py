@@ -37,7 +37,7 @@ class GKOGerberProcess(ProcessBase):
         box = ((box[0][0] + offset, box[0][1] - offset), (box[1][0] + offset, box[1][1] - offset))
         newsets = []
         for set in sets:
-            if not self.box1_in_box2(set.bounding_box, box):
+            if not self.box1_in_box2(set.bounding_box, box) or True:
                 newsets.append(set)
         self.CombineSets(newsets)
         self.sets = newsets

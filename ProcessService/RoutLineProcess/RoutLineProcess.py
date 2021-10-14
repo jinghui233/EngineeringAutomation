@@ -1,6 +1,7 @@
 import os
 from typing import List
 
+import cv2
 from gerber.gerber_statements import CoordStmt
 from gerber.rs274x import GerberFile
 
@@ -24,17 +25,29 @@ class RoutLineProcess:
         self.gkoGbrPcs = GKOGerberProcess(self.imageGenerater.gerberLayers["gko"])
         # 线层去重切割分组预处理
         self.gkoGbrPcs.PreProc()
+        image = self.imageGenerater.DrawShow(self.gkoGbrPcs.sets, False, -1)
+        cv2.imshow("test", image)
+        kval = 13
+        while kval == 13:
+            kval = cv2.waitKey(-1)
+
         # 线线对应
         lineSets = self.getLineSets(self.gkoGbrPcs.sets, self.gkoImgPcs.line_dict.values())
         self.gkoGbrPcs.sets = lineSets
         # rout层后处理
-        self.gkoGbrPcs.LastProc()
+        # self.gkoGbrPcs.LastProc()
 
     def getLineSets(self, lineSets: List[LineSet], pointPairs):
         newLineSets = []
         for pointPair in pointPairs:
             if len(pointPair) == 2:
-                newLineSets.append(self.__findset(pointPair, lineSets))
+                lineset = self.__findset(pointPair, lineSets)
+                if lineset != None:
+                    newLineSets.append(lineset)
+                    lineSets.remove(lineset)
+        for lineSet in lineSets:
+            if lineSet.start == lineSet.end:
+                newLineSets.append(lineSet)
         return newLineSets
 
     def ToGerberFile(self):
@@ -59,13 +72,14 @@ class RoutLineProcess:
 
     def __findset(self, pointPair, lineSets: List[LineSet]) -> LineSet:
         ratek = self.imageGenerater.ratek
+        offset = self.imageGenerater.offset
         mindistance = 10000000000
         minlineSet = None
         for lineSet in lineSets:
-            d_start1 = abs(pointPair[0][0] - lineSet.start[0] * ratek) + abs(pointPair[0][1] - lineSet.start[1] * ratek)
-            d_end1 = abs(pointPair[1][0] - lineSet.end[0] * ratek) + abs(pointPair[1][1] - lineSet.end[1] * ratek)
-            d_start2 = abs(pointPair[0][0] - lineSet.end[0] * ratek) + abs(pointPair[0][1] - lineSet.end[1] * ratek)
-            d_end2 = abs(pointPair[1][0] - lineSet.start[0] * ratek) + abs(pointPair[1][1] - lineSet.start[1] * ratek)
+            d_start1 = abs(pointPair[0][0] - (lineSet.start[0] - offset[0]) * ratek) + abs(pointPair[0][1] - (lineSet.start[1] - offset[1]) * ratek)
+            d_end1 = abs(pointPair[1][0] - (lineSet.end[0] - offset[0]) * ratek) + abs(pointPair[1][1] - (lineSet.end[1] - offset[1]) * ratek)
+            d_start2 = abs(pointPair[0][0] - (lineSet.end[0] - offset[0]) * ratek) + abs(pointPair[0][1] - (lineSet.end[1] - offset[1]) * ratek)
+            d_end2 = abs(pointPair[1][0] - (lineSet.start[0] - offset[0]) * ratek) + abs(pointPair[1][1] - (lineSet.start[1] - offset[1]) * ratek)
             curdistance = min((d_start1 + d_end1), (d_start2 + d_end2))
             if curdistance < mindistance:
                 mindistance = curdistance
