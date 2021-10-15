@@ -17,6 +17,19 @@ class ImageGenerater:
             self.img_layer = {}
             self.__init()
 
+    @staticmethod
+    def fromDir(path):  # 通过gerber文件路径创建实例
+        readlayers = ["gko", "drl", "gbs", "gbo", "gbl", "gts", "gto", "gtl"]
+        layers = os.listdir(path)
+        gerbers = {}
+        for layer in layers:
+            if not readlayers.__contains__(layer):
+                continue
+            with open(f"{path}\\{layer}", "rU") as fp:
+                data = fp.read()
+                gerbers[layer] = data
+        return ImageGenerater(gerbers)  # 图片生成器
+
     def __init(self):
         for gerberkey in self.gerbers.keys():
             self.gerberLayers[gerberkey] = gerber.loads(self.gerbers[gerberkey], gerberkey)
@@ -26,7 +39,8 @@ class ImageGenerater:
         self.width, self.height = self.gkobounds[0][1] - self.gkobounds[0][0], self.gkobounds[1][1] - self.gkobounds[1][0]
         self.k_in_m = 1 / self.ratek * 25.4 / 1000
         self.area_in_m = (self.width * (25.4 / 1000)) * (self.height * (25.4 / 1000))
-
+    def reinit(self):
+        self.__init()
     def __p_k_offset_p(self, point, ratek, offset):  # 对点坐标应用k值及偏移坐标
         point = (point[0] - offset[0], point[1] - offset[1])  # 偏移
         point = (point[0] * ratek, point[1] * ratek)  # 乘k值
@@ -270,23 +284,9 @@ class ImageGenerater:
         return image
 
 
-def dataPrepar(path):
-    readlayers = ["gko", "drl", "gbs", "gbo", "gbl", "gts", "gto", "gtl"]
-    layers = os.listdir(path)
-    gerbers = {}
-    for layer in layers:
-        if not readlayers.__contains__(layer):
-            continue
-        with open(f"{path}\\{layer}", "rU") as fp:
-            data = fp.read()
-            gerbers[layer] = data
-    return gerbers
-
-
 def test1():
-    path = "D:\ProjectFile\EngineeringAutomation\GongProcessing\TestDataSet\GerberFile\ALL-1W2308512\jp-2w2282523"
-    gerbers = dataPrepar(path)
-    gbGenerater = ImageGenerater(gerbers)  # 图片生成器
+    path = "C:\\Users\\96941\\Desktop\\11111\\222"
+    gbGenerater = ImageGenerater.fromDir(path)  # 图片生成器
     imagegko = gbGenerater.getlayerimg2("gko", 1)
     cv2.imshow("test", imagegko)
     cv2.waitKey(-1)
