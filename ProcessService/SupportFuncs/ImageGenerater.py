@@ -7,6 +7,9 @@ from gerber.primitives import Circle as gbCircle, Line as gbLine, Rectangle as g
     AMGroup as gbAMGroup, Outline as gbOutline
 from gerber.am_statements import AMLowerLeftLinePrimitive as gbAMLowerLeftLine, AMCirclePrimitive as gbAMCircle, AMVectorLinePrimitive as gbAMVectorLine
 
+toplist = ("gko", "gtl", "gto", "gts", "drl")
+downlist = ("gko", "gbl", "gbo", "gbs", "drl")
+
 
 class ImageGenerater:
     def __init__(self, gerbers, ratek=300):
@@ -39,8 +42,10 @@ class ImageGenerater:
         self.width, self.height = self.gkobounds[0][1] - self.gkobounds[0][0], self.gkobounds[1][1] - self.gkobounds[1][0]
         self.k_in_m = 1 / self.ratek * 25.4 / 1000
         self.area_in_m = (self.width * (25.4 / 1000)) * (self.height * (25.4 / 1000))
+
     def reinit(self):
         self.__init()
+
     def __p_k_offset_p(self, point, ratek, offset):  # 对点坐标应用k值及偏移坐标
         point = (point[0] - offset[0], point[1] - offset[1])  # 偏移
         point = (point[0] * ratek, point[1] * ratek)  # 乘k值
@@ -276,6 +281,7 @@ class ImageGenerater:
                 end = self.__p_k_offset_p(line.end, ratek, offset)  # 获取终点
                 r = line.radius * 2 * ratek  # 获取半径
                 r = math.ceil(r)  # 半径向上取整
+                r=3
                 if r > 0:
                     cv2.line(image, start, end, randomColor, r)
                 if step:
@@ -283,11 +289,28 @@ class ImageGenerater:
                     cv2.waitKey(waitKey)
         return image
 
+    def getSimulationImage(self):
+        bounds = self.gkobounds
+        ratek = self.ratek
+        padding = 1
+        offset = (self.offset[0] - padding / ratek, self.offset[1] - padding / ratek)
+        width, height = math.ceil((bounds[0][1] - bounds[0][0]) * ratek + padding * 2 + 1), math.ceil((bounds[1][1] - bounds[1][0]) * ratek + padding * 2 + 1)
+        image_top = np.zeros((height, width, 3), np.uint8)
+        for toplay in toplist:
+            if toplay in self.gerbers.keys():
+                a = 0
+
+    def __OverLying(self, lowerimage, upperimage):
+        upperimageGray = np.array(upperimage.shape())
+        upperimageGray = cv2.cvtColor(upperimage, cv2.COLOR_BGR2GRAY)
+
 
 def test1():
-    path = "C:\\Users\\96941\\Desktop\\11111\\222"
+    path = "D:\ProjectFile\EngineeringAutomation\TestData\GerberFile\ALL-1W2308512"
     gbGenerater = ImageGenerater.fromDir(path)  # 图片生成器
     imagegko = gbGenerater.getlayerimg2("gko", 1)
+    imagegtl = gbGenerater.getlayerimg("gtl")
+    gbGenerater.getSimulationImage()
     cv2.imshow("test", imagegko)
     cv2.waitKey(-1)
     cv2.imwrite("Debug/gko.png", imagegko)

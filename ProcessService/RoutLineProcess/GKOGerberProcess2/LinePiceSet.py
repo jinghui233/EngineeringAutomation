@@ -127,6 +127,9 @@ class LineSetBase:
         self._lines = []
         self.linesNum = 0
 
+    def setLines(self, lines: [LinePice]):
+        self._lines = lines
+
     @property
     def FirstLine(self) -> LinePice:
         return self._lines[0]
@@ -174,6 +177,8 @@ class LineSet(LineSetBase):
         LineSetBase.__init__(self)
         self.HasCompared = False
         self.endPoint_isolated = False
+        self.start1 = None
+        self.end1 = None
 
     def tryaddLine(self, line: LinePice) -> bool:
         if (self.linesNum == 0 or self._lines[self.linesNum - 1].end == line.start):
