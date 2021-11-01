@@ -13,7 +13,6 @@ from ProcessService.RoutLineProcess.GKOGerberProcess2.GKOGerberProcess import GK
 from ProcessService.RoutLineProcess.GKOImageProcess.GKOImageProcess import GKOImageProcess
 from ProcessService.SupportFuncs.ImageGenerater import ImageGenerater
 
-
 class RoutLineProcess:
     def __init__(self, imageGenerater: ImageGenerater):
         self.imageGenerater = imageGenerater
@@ -57,10 +56,10 @@ class RoutLineProcess:
         statements = []
         for set in lineSets:
             for pice in set.GetLineSet():
-                coord = {"function": None, "x": str(pice.start[0]), "y": str(pice.start[1]), "i": None, "j": None, "op": "D02"}
+                coord = {"function": None, "x": '%f10' % pice.start[0], "y": '%f10' % pice.start[1], "i": None, "j": None, "op": "D02"}
                 coordstmt = CoordStmt.from_dict(coord, settings)
                 statements.append(coordstmt)
-                coord = {"function": None, "x": str(pice.end[0]), "y": str(pice.end[1]), "i": None, "j": None, "op": "D01"}
+                coord = {"function": None, "x": '%f10' % pice.end[0], "y": '%f10' % pice.end[1], "i": None, "j": None, "op": "D01"}
                 coordstmt = CoordStmt.from_dict(coord, settings)
                 statements.append(coordstmt)
                 primitives.append(pice.gbLine)

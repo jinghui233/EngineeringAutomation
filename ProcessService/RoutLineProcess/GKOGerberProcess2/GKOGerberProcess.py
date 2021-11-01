@@ -7,19 +7,22 @@ class GKOGerberProcess(ProcessBase):
 
     def PreProc(self):
         sets = self.sets
-        self.OverLapping_Set(sets)
+        # self.OverLapping_Set(sets, 0)
+        # sets = self.Regenerate(sets)
+        self.CutSet_Set(sets)
+        sets = self.Regenerate(sets)
+        self.CutLine_Set(sets)
+        sets = self.Regenerate(sets)
+        self.OverLapping_Set(sets, 0)
         sets = self.Regenerate(sets)
         self.CutSet_Set(sets)
         sets = self.Regenerate(sets)
         self.CutLine_Set(sets)
         sets = self.Regenerate(sets)
-        self.OverLapping_Set(sets)
+        self.OverLapping_Set(sets, 0)
         sets = self.Regenerate(sets)
-        self.CutSet_Set(sets)
-        sets = self.Regenerate(sets)
-        self.CutLine_Set(sets)
-        sets = self.Regenerate(sets)
-        self.CombineSets(sets)
+        self.CombineSets(sets, 1)
+        # self.MovePoints(sets)
         self.sets = sets
         pass
 

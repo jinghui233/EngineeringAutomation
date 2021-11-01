@@ -1,16 +1,24 @@
 import math
 from typing import List
-
+from enum import Flag, auto
 import numpy as np
 from gerber.primitives import Line as Gbt_Line, Circle as Gbt_Circle
 
 
-class SignType():
+class SignTypeOld():
     Unchange = 0
     Delete = 1
     Cut = 2
     CutSetStart = 3
     CutSetEnd = 4
+
+
+class SignType(Flag):
+    Unchange = auto()
+    Delete = auto()
+    Cut = auto()
+    CutSetStart = auto()
+    CutSetEnd = auto()
 
 
 class LineBase:
@@ -115,6 +123,9 @@ class LinePice(LineBase):
                 if curdistance < minDistance:
                     minDistance = curdistance
                     minPoint = cutPoint
+                if curdistance > self.LineLength:
+                    if self.cutPoints.__contains__(cutPoint):
+                        self.cutPoints.remove(cutPoint)
             if self.cutPoints.__contains__(minPoint):
                 self.cutPoints.remove(minPoint)
                 newCutPoints.append(minPoint)
@@ -145,6 +156,13 @@ class LineSetBase:
     @property
     def end(self) -> List[float]:
         return self._lines[self.linesNum - 1].end
+
+    @property
+    def Length(self) -> float:
+        length = 0
+        for line in self._lines:
+            length = length + line.LineLength
+        return length
 
     def GetLine(self, index: int) -> LinePice:
         return self._lines[index]
@@ -210,6 +228,9 @@ class LineSet(LineSetBase):
         self.linesNum = len(self._lines)
         self.bounding_box = self.bound_box(self.bounding_box, lineSet.bounding_box)
 
+    def IsClose(self):
+        return (abs(self.start[0] - self.end[0]) + abs(self.start[1] - self.end[1])) < (self.FirstLine.radius + self.LastLine.radius) / 16
+
     def Regenerate(self):
         newLinesSets = []
         newLines = LineSet()
@@ -227,12 +248,18 @@ class LineSet(LineSetBase):
             if line.signType == SignType.Delete:
                 newLines = LineSet()
                 newLinesSets.append(newLines)
-            if line.signType == SignType.CutSetStart:
+            if line.signType == SignType.CutSetStart | SignType.Unchange:
                 newLines = LineSet()
                 newLines.addLine(line)
                 newLinesSets.append(newLines)
-            if line.signType == SignType.CutSetEnd:
+            if line.signType == SignType.CutSetEnd | SignType.Unchange:
                 newLines.addLine(line)
+                newLines = LineSet()
+                newLinesSets.append(newLines)
+            if line.signType == SignType.CutSetEnd | SignType.CutSetStart | SignType.Unchange:
+                newLines = LineSet()
+                newLines.addLine(line)
+                newLinesSets.append(newLines)
                 newLines = LineSet()
                 newLinesSets.append(newLines)
 

@@ -4,6 +4,7 @@ import numpy as np
 import math
 from ProcessService.RoutLineProcess.GKOGerberProcess2.LinePiceSet import LineBase
 
+
 class AnalyticGeometry:
 
     @staticmethod
@@ -17,14 +18,41 @@ class AnalyticGeometry:
         return math.fabs(point1[0] - point2[0]) + math.fabs(point1[1] - point2[1])
 
     @staticmethod
-    def PointIsInLine(line: LineBase, point: tuple):
-        if np.linalg.norm(np.array([line.end[0] - point[0], line.end[1] - point[1]])) < line.radius:
+    def P_to_P_Distance(point1: List[float], point2: List[float]) -> float:
+        return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+
+    @staticmethod
+    def P_to_P_Center(point1: List[float], point2: List[float]) -> List[float]:
+        return [(point1[0] + point2[0]) / 2, (point1[1] + point2[1]) / 2]
+
+    @staticmethod
+    def Line_Line_isConnected(line1: LineBase, line2: LineBase):
+        d1 = abs(line1.start[0] - line2.start[0]) + abs(line1.start[1] - line2.start[1]) < 0.00000001
+        d2 = abs(line1.end[0] - line2.end[0]) + abs(line1.end[1] - line2.end[1]) < 0.00000001
+        d3 = abs(line1.start[0] - line2.end[0]) + abs(line1.start[1] - line2.end[1]) < 0.00000001
+        d4 = abs(line1.end[0] - line2.start[0]) + abs(line1.end[1] - line2.start[1]) < 0.00000001
+        if d1 or d2 or d3 or d4:
+            return True
+        return False
+
+    @staticmethod
+    def Line_Line_isConnected2(line1_start, line1_end, line2_start, line2_end):
+        d1 = abs(line1_start[0] - line2_start[0]) + abs(line1_start[1] - line2_start[1]) < 0.00000001
+        d2 = abs(line1_end[0] - line2_end[0]) + abs(line1_end[1] - line2_end[1]) < 0.00000001
+        d3 = abs(line1_start[0] - line2_end[0]) + abs(line1_start[1] - line2_end[1]) < 0.00000001
+        d4 = abs(line1_end[0] - line2_start[0]) + abs(line1_end[1] - line2_start[1]) < 0.00000001
+        t = int(d1) * 1 + int(d2) * 2 + int(d3) * 3 + int(d4) * 4
+        return t
+
+    @staticmethod
+    def PointIsInLine(line: LineBase, point: tuple, redius=0):
+        if np.linalg.norm(np.array([line.end[0] - point[0], line.end[1] - point[1]])) < line.radius + redius:
             return True, line.end
-        if np.linalg.norm(np.array([line.start[0] - point[0], line.start[1] - point[1]])) < line.radius:
+        if np.linalg.norm(np.array([line.start[0] - point[0], line.start[1] - point[1]])) < line.radius + redius:
             return True, line.start
         # 点到线距离  交点坐标   起点到交点的距离    线长度
         distance, crossPoint, crossDistance, lineLength = AnalyticGeometry.PointToLine(line, point)
-        if crossDistance > 0 and crossDistance < lineLength and distance < line.radius:
+        if crossDistance > 0 and crossDistance < lineLength and distance < line.radius + redius:
             return True, crossPoint
         return False, None
 
